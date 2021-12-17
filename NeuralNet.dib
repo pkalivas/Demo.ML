@@ -1,0 +1,97 @@
+#!csharp
+
+#r "dlls\Radiate.dll"
+#r "dlls\Radiate.Data.dll"
+#r "nuget: XPlot.Plotly.Interactive, 4.0.6"
+
+#!csharp
+
+using System.Linq;
+using System;
+using System.Collections.Generic;
+using XPlot.Plotly;
+using Radiate.Data;
+using Radiate.Data.Utils;
+using Radiate.Data.Models;
+using Radiate.Domain.Activation;
+using Radiate.Domain.Loss;
+using Radiate.Domain.Services;
+using Radiate.Domain.Records;
+using Radiate.Domain.Tensors;
+using Radiate.Optimizers.Supervised;
+using Radiate.Optimizers.Supervised.Perceptrons;
+using Radiate.Optimizers.Supervised.Perceptrons.Info;
+
+#!csharp
+
+const int featureLimit = 500;
+const double splitPct = .75;
+const int hiddenLayerSize = 128;
+const int maxEpochs = 50;
+const int batchSize = 50;
+
+var imageShape = new Radiate.Domain.Records.Shape(28, 28, 1);
+
+#!csharp
+
+var testFeaturesLocation = $"{Environment.CurrentDirectory}\\data\\Mnist\\test.gz";
+var features = (await Utilities.UnzipGZAndLoad<List<MinstImage>>(testFeaturesLocation))
+    .Take(featureLimit)
+    .ToList();
+
+var rawInputs = features
+    .Select(diget => diget.Image.Select(point => (float)point).ToList())
+    .ToList();
+var rawLabels = features
+    .Select(diget => diget.Label)
+    .ToList();
+
+var normalizedInputs = FeatureService.Normalize(rawInputs);
+var oneHotEncode = FeatureService.OneHotEncode(rawLabels);
+
+public string ViewRandom()
+{
+    var rand = new Random();
+    var index = (int) rand.NextDouble() * normalizedInputs.Count;
+    var randomInput = normalizedInputs[index];
+    var transformedImage = BatchService.Transform(randomInput, imageShape);
+    return transformedImage.ToImageString();
+}
+
+// ViewRandom()
+
+#!csharp
+
+var inputSize = normalizedInputs.Select(input => input.Length).Distinct().Single();
+var outputSize = oneHotEncode.Select(target => target.Length).Distinct().Single();
+
+var splitIndex = (int) (normalizedInputs.Count - (normalizedInputs.Count * splitPct));
+var trainFeatures = normalizedInputs.Skip(splitIndex).ToList();
+var trainTargets = oneHotEncode.Skip(splitIndex).ToList();
+var testFeatures = normalizedInputs.Take(splitIndex).ToList();
+var testTargets = oneHotEncode.Take(splitIndex).ToList();
+
+#!csharp
+
+var neuralNetwork = new MultiLayerPerceptron()
+    .AddLayer(new DenseInfo(hiddenLayerSize, Activation.Sigmoid))
+    .AddLayer(new DenseInfo(outputSize, Activation.SoftMax));
+
+var optimizer = new Optimizer(neuralNetwork, Loss.CrossEntropy);
+
+await optimizer.Train(trainFeatures, trainTargets, batchSize, (epochs) => 
+{
+    var currentEpoch = epochs.Last();
+    Console.WriteLine($"Loss: {currentEpoch.Loss} Accuracy: {currentEpoch.ClassificationAccuracy}");
+    return maxEpochs == epochs.Count || Math.Abs(currentEpoch.Loss) < .1;
+});
+
+#!csharp
+
+var trainValidation = optimizer.Validate(trainFeatures, trainTargets);
+var testValidation = optimizer.Validate(testFeatures, testTargets);
+
+var trainValid = trainValidation.ClassificationAccuracy;
+var testValid = testValidation.ClassificationAccuracy;
+
+Console.WriteLine($"\nTrain accuracy: {trainValid} - Test accuracy: {testValid}");
