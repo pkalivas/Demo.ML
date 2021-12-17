@@ -1,0 +1,216 @@
+#!csharp
+
+#r "dlls\Radiate.dll"
+#r "dlls\Radiate.Data.dll"
+#r "nuget: XPlot.Plotly.Interactive, 4.0.6"
+
+#!csharp
+
+using System.Linq;
+using System;
+using System.IO;
+using System.Collections.Generic;
+using XPlot.Plotly;
+using Radiate.Domain.Services;
+using Radiate.Data.Charting;
+
+#!csharp
+
+var fileName = $"{Environment.CurrentDirectory}\\data\\BostonHousing\\Boston.csv";
+var contents = await File.ReadAllTextAsync(fileName);
+
+var features = new List<List<float>>();
+var labels = new List<List<float>>();
+foreach (var row in contents.Split("\n").Skip(1))
+{
+    var columns = row
+        .Split(",")
+        .Skip(1)
+        .Select(Convert.ToSingle)
+        .ToList();
+
+    features.Add(columns.Take(columns.Count - 1).ToList());
+    labels.Add(columns.Skip(columns.Count - 1).ToList());
+}
+
+#!csharp
+
+var splitPct = .75;
+
+var splitIndex = (int) (features.Count - (features.Count * splitPct));
+
+var normalizedInputs = FeatureService.Standardize(features);
+var rawLabels = labels.Select(lab => lab.ToArray()).ToList();
+var inputSize = normalizedInputs.Select(input => input.Length).Distinct().Single();
+var outputSize = labels.Select(lab => lab.Count).Distinct().Single();
+
+var trainFeatures = normalizedInputs.Skip(splitIndex).ToList();
+var trainTargets = rawLabels.Skip(splitIndex).ToList();
+var testFeatures = normalizedInputs.Take(splitIndex).ToList();
+var testTargets = rawLabels.Take(splitIndex).ToList();
+
+#!csharp
+
+public float[] ActivateLinear(float[] values) => values;
+
+public float[] DeactivateLinear(float[] values) => Enumerable.Range(0, values.Length).Select(_ => 1f).ToArray();
+
+#!csharp
+
+public float[] DifferenceError(float[] outputs, float[] trueTargets)
+{
+    var result = new List<float>();
+
+    foreach (var (guess, target) in outputs.Zip(trueTargets))
+    {
+        result.Add(target - guess);
+    }
+
+    return result.ToArray();
+}
+
+#!csharp
+
+var weights = new float[outputSize, inputSize];
+var biases = new float[outputSize];
+
+var rand = new Random();
+for (var i = 0; i < outputSize; i++)
+{
+    biases[i] = (float) rand.NextDouble() * 2 - 1;
+    for (var j = 0; j < inputSize; j++)
+    {
+        weights[i, j] = (float) rand.NextDouble() * 2 - 1;
+    }
+}
+
+#!csharp
+
+public float[] PassForwardInput(float[] inputs)
+{
+    var result = new float[outputSize];
+
+    for (var i = 0; i < outputSize; i++)
+    {
+        var summedValue = inputs.Select((value, index) => weights[i, index] * value).Sum() + biases[i];
+        result[i] = summedValue;
+    }
+
+    return result;
+}
+
+#!csharp
+
+public void PassBackErrors(float[] errors, float[] errorCorrection, float[] previousInput, float learningRate)
+{
+    for (var i = 0; i < outputSize; i++)
+    {
+        var biasCorrection = errors[i] * errorCorrection[i];
+        biases[i] += biasCorrection * learningRate;
+
+        for (var j = 0; j < inputSize; j++)
+        {
+            var weightCorrection = errors[i] * errorCorrection[i] * previousInput[j];
+            weights[i, j] += weightCorrection * learningRate;
+        }
+    }
+}
+
+#!csharp
+
+public float[] Predict(float[] inputs)
+{
+    var modelOutput = PassForwardInput(inputs);
+    return ActivateLinear(modelOutput);
+}
+
+#!csharp
+
+public static float RegressionAccuracy(List<float[]> predictions, List<float[]> targets)
+{
+    var targetTotal = targets.Sum(tar => tar.First());
+    var absoluteDifference = predictions.Zip(targets)
+        .Select(pair => Math.Abs(pair.Second.First() - pair.First.First()))
+        .Sum();
+
+    return (targetTotal - absoluteDifference) / targetTotal;
+}
+
+#!csharp
+
+var learningRate = 0.001f;
+var maxEpochs = 50;
+
+var epochLosses = new List<float>();
+var epochAccuracy = new List<float>();
+
+foreach (var epoch in Enumerable.Range(0, maxEpochs))
+{
+    var epochTotalError = 0f;
+    var passPredictions = new List<float[]>();
+    foreach (var (input, target) in trainFeatures.Zip(trainTargets))
+    {
+        var prediction = Predict(input);
+
+        var errors = DifferenceError(prediction, target);
+        var deactivatedError = DeactivateLinear(errors);
+
+        PassBackErrors(errors, deactivatedError, input, learningRate); 
+
+        epochTotalError += errors.Sum();
+        passPredictions.Add(prediction);
+    }
+
+    epochAccuracy.Add(RegressionAccuracy(passPredictions, trainTargets));
+    epochLosses.Add(epochTotalError);
+
+    if (epoch % 10 == 0)
+    {
+        Console.WriteLine($"Epoch {epoch} loss: {epochLosses.Last()}");
+    }
+}
+
+#!csharp
+
+var trainPredictions = trainFeatures.Select(row => Predict(row)).ToList();
+var testPredictions = testFeatures.Select(row => Predict(row)).ToList();
+
+#!csharp
+
+var trainAccuracy = RegressionAccuracy(trainPredictions, trainTargets);
+var testAccuracy = RegressionAccuracy(testPredictions, testTargets);
+
+$"Train Accuracy {trainAccuracy} Test Accuracy {testAccuracy}"
+
+#!csharp
+
+ChartingService.GetChart(new ChartRequest
+{
+    Title = "Training Loss Performance",
+    YOneName = "Train Epoch Loss",
+    YTwoName = "Train Regression Accuracy",
+    YOneData = epochLosses.Select(val => Math.Abs(val)).ToList(),
+    YTwoData = epochAccuracy.Select(val => val).ToList(),
+})
+
+#!csharp
+
+ChartingService.GetChart(new ChartRequest
+{
+    Title = "Train Predictions vs. Train Actual",
+    YOneName = "Train Predictions",
+    YTwoName = "Train Targets",
+    YOneData = trainPredictions.Select(pred => pred.Single()).ToList(),
+    YTwoData = trainTargets.Select(pred => pred.Single()).ToList()
+})
+
+#!csharp
+
+ChartingService.GetChart(new ChartRequest
+{
+    Title = "Test Predictions vs. Test Actual",
+    YOneName = "Test Predictions",
+    YTwoName = "Test Targets",
+    YOneData = testPredictions.Select(pred => pred.Single()).ToList(),
+    YTwoData = testTargets.Select(pred => pred.Single()).ToList()
+})
