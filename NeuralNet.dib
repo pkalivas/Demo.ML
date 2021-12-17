@@ -18,6 +18,7 @@ using Radiate.Domain.Loss;
 using Radiate.Domain.Services;
 using Radiate.Domain.Records;
 using Radiate.Domain.Tensors;
+using Radiate.Domain.Gradients;
 using Radiate.Optimizers.Supervised;
 using Radiate.Optimizers.Supervised.Perceptrons;
 using Radiate.Optimizers.Supervised.Perceptrons.Info;
@@ -26,9 +27,8 @@ using Radiate.Optimizers.Supervised.Perceptrons.Info;
 
 const int featureLimit = 500;
 const double splitPct = .75;
-const int hiddenLayerSize = 128;
-const int maxEpochs = 50;
-const int batchSize = 50;
+const int maxEpochs = 20;
+const int batchSize = 20;
 
 var imageShape = new Radiate.Domain.Records.Shape(28, 28, 1);
 
@@ -52,13 +52,15 @@ var oneHotEncode = FeatureService.OneHotEncode(rawLabels);
 public string ViewRandom()
 {
     var rand = new Random();
-    var index = (int) rand.NextDouble() * normalizedInputs.Count;
+    var index = (int) rand.Next(0, normalizedInputs.Count);
     var randomInput = normalizedInputs[index];
     var transformedImage = BatchService.Transform(randomInput, imageShape);
     return transformedImage.ToImageString();
 }
 
-// ViewRandom()
+#!csharp
+
+ViewRandom()
 
 #!csharp
 
@@ -74,17 +76,44 @@ var testTargets = oneHotEncode.Take(splitIndex).ToList();
 #!csharp
 
 var neuralNetwork = new MultiLayerPerceptron()
-    .AddLayer(new DenseInfo(hiddenLayerSize, Activation.Sigmoid))
+    .AddLayer(new ConvInfo(16, 3))
+    .AddLayer(new MaxPoolInfo(16, 3) { Stride = 2})
+    .AddLayer(new FlattenInfo())
+    .AddLayer(new DenseInfo(64, Activation.Sigmoid))
     .AddLayer(new DenseInfo(outputSize, Activation.SoftMax));
 
-var optimizer = new Optimizer(neuralNetwork, Loss.CrossEntropy);
+var optimizer = new Optimizer(neuralNetwork, Loss.CrossEntropy, imageShape, new GradientInfo
+{
+    Gradient = Gradient.Adam,
+    LearningRate = 0.01f
+});
+
 
 await optimizer.Train(trainFeatures, trainTargets, batchSize, (epochs) => 
 {
     var currentEpoch = epochs.Last();
-    Console.WriteLine($"Loss: {currentEpoch.Loss} Accuracy: {currentEpoch.ClassificationAccuracy}");
-    return maxEpochs == epochs.Count || Math.Abs(currentEpoch.Loss) < .1;
+    var prevEpoch = epochs.Count > 1 ? epochs.ElementAt(epochs.Count - 2) : currentEpoch;
+    var lossDiff = Math.Round(currentEpoch.Loss - prevEpoch.Loss, 4);
+
+    Console.WriteLine($"[{epochs.Count}] Loss: {currentEpoch.Loss} ({lossDiff}) Accuracy: {currentEpoch.ClassificationAccuracy}");
+    
+    return maxEpochs == epochs.Count;
 });
+
+#!csharp
+
+// var neuralNetwork = new MultiLayerPerceptron()
+//     .AddLayer(new DenseInfo(128, Activation.Sigmoid))
+//     .AddLayer(new DenseInfo(outputSize, Activation.SoftMax));
+
+// var optimizer = new Optimizer(neuralNetwork, Loss.CrossEntropy);
+
+// await optimizer.Train(trainFeatures, trainTargets, batchSize, (epochs) => 
+// {
+//     var currentEpoch = epochs.Last();
+//     Console.WriteLine($"Loss: {currentEpoch.Loss} Accuracy: {currentEpoch.ClassificationAccuracy}");
+//     return maxEpochs == epochs.Count || Math.Abs(currentEpoch.Loss) < .1;
+// });
 
 #!csharp
 
