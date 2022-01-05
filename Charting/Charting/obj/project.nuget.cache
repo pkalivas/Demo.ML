@@ -1,0 +1,12 @@
+{
+  "version": 2,
+  "dgSpecHash": "91VSv+J3tIR67Qz4bukX18I39z8mOek4iKdYnEutGA+PnXQ6GvbfVSHBb5xlqzekDDa6CaWRIj5xN8QEO1tjKQ==",
+  "success": true,
+  "projectFilePath": "C:\\Users\\Peter\\Desktop\\PTDemo\\Charting\\Charting\\Charting.csproj",
+  "expectedPackageFiles": [
+    "C:\\Users\\Peter\\.nuget\\packages\\fsharp.core\\4.7.2\\fsharp.core.4.7.2.nupkg.sha512",
+    "C:\\Users\\Peter\\.nuget\\packages\\newtonsoft.json\\12.0.3\\newtonsoft.json.12.0.3.nupkg.sha512",
+    "C:\\Users\\Peter\\.nuget\\packages\\xplot.plotly\\4.0.6\\xplot.plotly.4.0.6.nupkg.sha512"
+  ],
+  "logs": []
+}

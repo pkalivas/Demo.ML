@@ -2,6 +2,7 @@
 
 #r "dlls\Radiate.dll"
 #r "dlls\Radiate.Data.dll"
+#r "dlls\Charting.dll"
 #r "nuget: XPlot.Plotly.Interactive, 4.0.6"
 
 #!csharp
@@ -11,8 +12,8 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using XPlot.Plotly;
-using Radiate.Domain.Services;
-using Radiate.Data.Charting;
+using Radiate.Domain.Extensions;
+using Charting;
 
 #!csharp
 
@@ -39,7 +40,7 @@ var splitPct = .75;
 
 var splitIndex = (int) (features.Count - (features.Count * splitPct));
 
-var normalizedInputs = FeatureService.Standardize(features);
+var normalizedInputs = features.Select(row => row.ToArray()).ToList().Standardize();
 var rawLabels = labels.Select(lab => lab.ToArray()).ToList();
 var inputSize = normalizedInputs.Select(input => input.Length).Distinct().Single();
 var outputSize = labels.Select(lab => lab.Count).Distinct().Single();
@@ -48,12 +49,6 @@ var trainFeatures = normalizedInputs.Skip(splitIndex).ToList();
 var trainTargets = rawLabels.Skip(splitIndex).ToList();
 var testFeatures = normalizedInputs.Take(splitIndex).ToList();
 var testTargets = rawLabels.Take(splitIndex).ToList();
-
-#!csharp
-
-public float[] ActivateLinear(float[] values) => values;
-
-public float[] DeactivateLinear(float[] values) => Enumerable.Range(0, values.Length).Select(_ => 1f).ToArray();
 
 #!csharp
 
@@ -92,8 +87,7 @@ public float[] PassForwardInput(float[] inputs)
 
     for (var i = 0; i < outputSize; i++)
     {
-        var summedValue = inputs.Select((value, index) => weights[i, index] * value).Sum() + biases[i];
-        result[i] = summedValue;
+        result[i] = inputs.Select((value, index) => weights[i, index] * value).Sum() + biases[i];
     }
 
     return result;
@@ -101,27 +95,17 @@ public float[] PassForwardInput(float[] inputs)
 
 #!csharp
 
-public void PassBackErrors(float[] errors, float[] errorCorrection, float[] previousInput, float learningRate)
+public void PassBackErrors(float[] errors, float[] previousInput, float learningRate)
 {
     for (var i = 0; i < outputSize; i++)
     {
-        var biasCorrection = errors[i] * errorCorrection[i];
-        biases[i] += biasCorrection * learningRate;
+        biases[i] += errors[i] * learningRate;
 
         for (var j = 0; j < inputSize; j++)
         {
-            var weightCorrection = errors[i] * errorCorrection[i] * previousInput[j];
-            weights[i, j] += weightCorrection * learningRate;
+            weights[i, j] += errors[i] * previousInput[j] * learningRate;
         }
     }
-}
-
-#!csharp
-
-public float[] Predict(float[] inputs)
-{
-    var modelOutput = PassForwardInput(inputs);
-    return ActivateLinear(modelOutput);
 }
 
 #!csharp
@@ -150,12 +134,11 @@ foreach (var epoch in Enumerable.Range(0, maxEpochs))
     var passPredictions = new List<float[]>();
     foreach (var (input, target) in trainFeatures.Zip(trainTargets))
     {
-        var prediction = Predict(input);
+        var prediction = PassForwardInput(input);
 
         var errors = DifferenceError(prediction, target);
-        var deactivatedError = DeactivateLinear(errors);
 
-        PassBackErrors(errors, deactivatedError, input, learningRate); 
+        PassBackErrors(errors, input, learningRate); 
 
         epochTotalError += errors.Sum();
         passPredictions.Add(prediction);
@@ -172,8 +155,8 @@ foreach (var epoch in Enumerable.Range(0, maxEpochs))
 
 #!csharp
 
-var trainPredictions = trainFeatures.Select(row => Predict(row)).ToList();
-var testPredictions = testFeatures.Select(row => Predict(row)).ToList();
+var trainPredictions = trainFeatures.Select(row => PassForwardInput(row)).ToList();
+var testPredictions = testFeatures.Select(row => PassForwardInput(row)).ToList();
 
 #!csharp
 

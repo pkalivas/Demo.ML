@@ -1,0 +1,56 @@
+#!csharp
+
+#r "dlls\Radiate.dll"
+#r "dlls\Radiate.Data.dll"
+
+#!csharp
+
+using System.Linq;
+using System;
+using System.IO;
+using System.Collections.Generic;
+using Newtonsoft.Json;
+using Radiate.Domain.Records;
+using Radiate.Data.Utils;
+using Radiate.Data.Models;
+using Radiate.Domain.Tensors;
+using Radiate.Domain.Extensions;
+using Radiate.Domain.Models;
+using Radiate.Optimizers.Supervised.Forest;
+using Radiate.Optimizers;
+
+#!csharp
+
+var fileName = $"{Environment.CurrentDirectory}\\data\\BostonHousing\\Boston.csv";
+var contents = await File.ReadAllTextAsync(fileName);
+
+var features = new List<float[]>();
+var labels = new List<float[]>();
+foreach (var row in contents.Split("\n").Skip(1))
+{
+    var columns = row
+        .Split(",")
+        .Skip(1)
+        .Select(Convert.ToSingle)
+        .ToList();
+
+    features.Add(columns.Take(columns.Count - 1).ToArray());
+    labels.Add(columns.Skip(columns.Count - 1).ToArray());
+}
+
+#!csharp
+
+const int numTrees = 5;
+const int maxDepth = 10;
+const int minSampleSplit = 2;
+const int nFeatures = 30;
+
+var pair = new TensorTrainSet(features, labels).Split();
+
+var forest = new RandomForest(numTrees, new ForestInfo(minSampleSplit, maxDepth, nFeatures));
+var optimizer = new Optimizer<RandomForest>(forest, pair);
+
+await optimizer.Train();
+
+var (trainValid, testValid) = optimizer.Validate();
+$"Train Regression Acc: {trainValid.RegressionAccuracy} Test: {testValid.RegressionAccuracy}"

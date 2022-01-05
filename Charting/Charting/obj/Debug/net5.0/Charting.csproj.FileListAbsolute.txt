@@ -1,0 +1,12 @@
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\bin\Debug\net5.0\Charting.deps.json
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\bin\Debug\net5.0\Charting.dll
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\bin\Debug\net5.0\ref\Charting.dll
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\bin\Debug\net5.0\Charting.pdb
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\obj\Debug\net5.0\Charting.csproj.AssemblyReference.cache
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\obj\Debug\net5.0\Charting.GeneratedMSBuildEditorConfig.editorconfig
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\obj\Debug\net5.0\Charting.AssemblyInfoInputs.cache
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\obj\Debug\net5.0\Charting.AssemblyInfo.cs
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\obj\Debug\net5.0\Charting.csproj.CoreCompileInputs.cache
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\obj\Debug\net5.0\Charting.dll
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\obj\Debug\net5.0\ref\Charting.dll
+C:\Users\Peter\Desktop\PTDemo\Charting\Charting\obj\Debug\net5.0\Charting.pdb
