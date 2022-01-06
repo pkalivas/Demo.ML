@@ -46,18 +46,35 @@ namespace Charting
             return chart;
         }
 
-        public static PlotlyChart GetChart(List<int>[] clusters, float[,][] centers, float[,][] datapoints)
+        public static PlotlyChart GetChart(List<int>[] clusters, List<List<float>> centers, List<List<float>> dataPoints)
         {
-            var clusterPoints = datapoints
-                .Select(c => c.Select(idx => datapoints[idx]))
+            var colors = new[] { "red", "green", "blue" };
+            var clusterPoints = clusters
+                .Select(c => c.Select(idx => dataPoints[idx]).ToList())
                 .ToList();
 
-            return null;
-            //var chart = Chart.Plot(new[] { prediction, actualValues });
-            //chart.WithTitle("");
-            //chart.WithLayout(layout);
+            var scatters = clusterPoints
+                .Select((clus, idx) => new Scatter
+                {
+                    mode = "markers",
+                    x = clus.Select(point => point.First()),
+                    y = clus.Select(point => point.Last()),
+                    marker = new Marker { color = colors[idx] }
+                })
+                .ToList();
 
-            //return chart;
+            var t = new Scatter
+            {
+                mode = "markers",
+                x = centers.Select(p => p.First()),
+                y = centers.Select(p => p.Last()),
+                marker = new Marker { color = "black", size = 10, symbol = "cross" }
+            };
+
+            var chart = Chart.Plot(scatters.Concat(new []{t}).ToList());
+            chart.WithTitle("");
+
+            return chart;
         }
 
     }

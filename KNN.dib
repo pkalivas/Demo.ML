@@ -76,3 +76,14 @@ var kMeans = new KMeans(kMeansWrap);
 var validator = new Validator();
 var acc = validator.Validate(optimizer.Model, pair.TrainingInputs);
 Console.WriteLine($"\nLoss: {acc.AverageLoss} Accuracy {acc.RegressionAccuracy}");
+
+#!csharp
+
+using Charting;
+
+var points = features.Select(f => f.ToList()).ToList();
+var centers = kMeansWrap.KMeansWrap.Centroids;
+var c = centers.Select(r => r.ToList()).ToList();
+var chart = Charting.ChartingService.GetChart(kMeansWrap.KMeansWrap.Clusters, c, points);
+
+chart.GetHtml()
