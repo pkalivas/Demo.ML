@@ -1,4 +1,5 @@
-﻿using System.Linq;
+﻿using System.Collections.Generic;
+using System.Linq;
 using XPlot.Plotly;
 
 namespace Charting
@@ -44,5 +45,20 @@ namespace Charting
 
             return chart;
         }
+
+        public static PlotlyChart GetChart(List<int>[] clusters, float[,][] centers, float[,][] datapoints)
+        {
+            var clusterPoints = datapoints
+                .Select(c => c.Select(idx => datapoints[idx]))
+                .ToList();
+
+            return null;
+            //var chart = Chart.Plot(new[] { prediction, actualValues });
+            //chart.WithTitle("");
+            //chart.WithLayout(layout);
+
+            //return chart;
+        }
+
     }
 }
