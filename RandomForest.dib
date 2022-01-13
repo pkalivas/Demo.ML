@@ -1,7 +1,7 @@
 #!csharp
 
-#r "dlls\Radiate.dll"
-#r "dlls\Radiate.Data.dll"
+#r "nuget: Radiate.Data, 1.0.1"
+#r "nuget: Radiate, 1.0.1"
 
 #!csharp
 
@@ -10,47 +10,35 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using Newtonsoft.Json;
-using Radiate.Domain.Records;
-using Radiate.Data.Utils;
-using Radiate.Data.Models;
-using Radiate.Domain.Tensors;
-using Radiate.Domain.Extensions;
-using Radiate.Domain.Models;
+using Radiate.Records;
+using Radiate.Data;
+using Radiate.Tensors;
+using Radiate.Extensions;
+using Radiate.Losses;
 using Radiate.Optimizers.Supervised.Forest;
+using Radiate.Optimizers.Supervised.Forest.Info;
 using Radiate.Optimizers;
 
 #!csharp
 
-var fileName = $"{Environment.CurrentDirectory}\\data\\BostonHousing\\Boston.csv";
-var contents = await File.ReadAllTextAsync(fileName);
-
-var features = new List<float[]>();
-var labels = new List<float[]>();
-foreach (var row in contents.Split("\n").Skip(1))
-{
-    var columns = row
-        .Split(",")
-        .Skip(1)
-        .Select(Convert.ToSingle)
-        .ToList();
-
-    features.Add(columns.Take(columns.Count - 1).ToArray());
-    labels.Add(columns.Skip(columns.Count - 1).ToArray());
-}
-
-#!csharp
+var (features, labels) = await new BostonHousing().GetDataSet();
 
 const int numTrees = 5;
 const int maxDepth = 10;
 const int minSampleSplit = 2;
-const int nFeatures = 30;
 
-var pair = new TensorTrainSet(features, labels).Split();
+var pair = new TensorTrainSet(features, labels)
+    .Batch(features.Count)
+    .Split();
 
-var forest = new RandomForest(numTrees, new ForestInfo(minSampleSplit, maxDepth, nFeatures));
+var forest = new RandomForest(numTrees, new ForestInfo(minSampleSplit, maxDepth));
 var optimizer = new Optimizer<RandomForest>(forest, pair);
 
-await optimizer.Train();
+var model = await optimizer.Train();
 
-var (trainValid, testValid) = optimizer.Validate();
+var lossFunction = new Difference();
+var validator = new Validator(lossFunction.Calculate);
+var trainValid = validator.Validate(model, pair.TrainingInputs);
+var testValid = validator.Validate(model, pair.TestingInputs);
+
 $"Train Regression Acc: {trainValid.RegressionAccuracy} Test: {testValid.RegressionAccuracy}"

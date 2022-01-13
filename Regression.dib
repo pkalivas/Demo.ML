@@ -1,7 +1,5 @@
 #!csharp
 
-#r "dlls\Radiate.dll"
-#r "dlls\Radiate.Data.dll"
 #r "dlls\Charting.dll"
 #r "nuget: XPlot.Plotly.Interactive, 4.0.6"
 

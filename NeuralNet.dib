@@ -1,8 +1,26 @@
 #!csharp
 
-#r "dlls\Radiate.dll"
-#r "dlls\Radiate.Data.dll"
-#r "nuget: XPlot.Plotly.Interactive, 4.0.6"
+#r "nuget: Radiate, 1.0.3"
+#r "nuget: Radiate.Data, 1.0.2"
+
+#!csharp
+
+static string PrintImage(float[] mnistRow, string c = "*")
+{
+    var image = "\n";
+    for (var i = 0; i < 28; i++)
+    {
+        var row = "";
+        for (var j = 0; j < 28; j++)
+        {
+            row += mnistRow[i * 28 + j] > 0 ? c : " ";
+        }
+
+        image += string.IsNullOrWhiteSpace(row) ? "" : row + "\n";
+    }
+
+    return image;
+}
 
 #!csharp
 
@@ -11,140 +29,77 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using Newtonsoft.Json;
-using XPlot.Plotly;
-using Radiate.Domain.Records;
+using Radiate.Records;
 using Radiate.Data.Utils;
-using Radiate.Data.Models;
-using Radiate.Domain.Tensors;
-using Radiate.Domain.Extensions;
-using Radiate.Domain.Models;
+using Radiate.Data;
+using Radiate.Tensors;
+using Radiate.IO.Wraps;
+using Radiate.Optimizers;
 using Radiate.Optimizers.Supervised.Perceptrons;
+using Radiate.Optimizers.Supervised.SVM;
 
 #!csharp
 
-var fileLocation = $"{Environment.CurrentDirectory}\\Models\\convnet.json";
+var fileLocation = $"{Environment.CurrentDirectory}\\Models\\MultiLayerPerceptron.json";
 var contents = await File.ReadAllTextAsync(fileLocation);
-var convNetWrap = JsonConvert.DeserializeObject<MultiLayerPerceptronWrap>(contents);
 
-var neuralNetwork = new MultiLayerPerceptron(convNetWrap);
-
-#!csharp
-
-var testFeaturesLocation = $"{Environment.CurrentDirectory}\\data\\Mnist\\test.gz";
-var features = await Utilities.UnzipGZAndLoad<List<MinstImage>>(testFeaturesLocation);
-
-var rawInputs = features
-    .Select(diget => diget.Image.Select(point => (float)point).ToArray())
-    .ToList();
-var rawLabels = features
-    .Select(diget => new[] { (float) diget.Label })
-    .ToList();
-
-$"Input Count: {rawInputs.Count} Label Count: {rawLabels.Count}"
+var convNetWrap = JsonConvert.DeserializeObject<OptimizerWrap>(contents);
+var convNet = Optimizer<MultiLayerPerceptron>.Load(convNetWrap);
 
 #!csharp
 
-var normalizedInputs = rawInputs.Normalize();
-var encodedTargets = rawLabels.OneHotEncode();
-var inputShape = new Radiate.Domain.Records.Shape(28, 28, 1);
-
-var pair = new TensorTrainSet(normalizedInputs, encodedTargets).Pad(1).Transform(inputShape);
-
-var validationBatches = pair.TrainingInputs;
-
-#!csharp
-
-var validator = new Validator();
-var testValidation = validator.Validate(neuralNetwork, validationBatches);
-
-$"Test Accuracy: {testValidation.ClassificationAccuracy}"
+var (rawInputs, rawLabels) = await new Mnist().GetDataSet();
+$"{convNet.Validate(rawInputs, rawLabels)}"
 
 #!csharp
 
 var rand = new Random();
-var index = (int) rand.Next(0, validationBatches.Count);
-var (input, target) = validationBatches.ElementAt(index);
+var index = rand.Next(0, rawInputs.Count);
+var (input, target) = (rawInputs[index], rawLabels[index]);
 
-var networkInput = input.First();
-var realOutput = target.First().ToList().IndexOf(target.First().Max());
-var prediction = neuralNetwork.Predict(networkInput);
+var prediction = convNet.Predict(input);
 
-Console.WriteLine($"Predicted Value: {prediction.Classification}");
-Console.WriteLine($"Actual Value: {realOutput}");
-Console.WriteLine($"Confidence: {prediction.Confidence}");
-$"{networkInput.ToImageString()}"
+Console.WriteLine($"Predicted: {prediction.Classification} Truth: {target.First()} Confidence: {prediction.Confidence:P2}");
+Console.WriteLine($"{PrintImage(input)}");
 
 #!markdown
 
-Start off by defining model parameters
-- **featureLimit**: How many data points to load in. MNist is large (60K) and a single training epoch can take around 15mins. To save time we only take a subset of that dataset to train the model on.
-- **batchSize**: How many data points to give the model before it updates it's parameters. This is a useful way to speed up training time and can result in a more generalized model.
-- **maxEpochs**: The max number of epochs to train on. In this case, the model will train on 25 epochs, meaning it will see the data we give it 25 times.
-- **imagePadding**: Padding is used pretty much only for Convolutional Neural Networks, essentially it allows the network to 'see' more of the data.
-- **inputShape**: The shape of the image we give it, in this case the image is a 28x28 image with 1 RGB pixel (black or white).
-
 ```c#
+using Radiate.Activations;
+using Radiate.Data;
+using Radiate.Optimizers;
+using Radiate.Optimizers.Supervised.Perceptrons;
+using Radiate.Optimizers.Supervised.Perceptrons.Info;
+using Radiate.Records;
+using Radiate.Tensors;
+using Radiate.Tensors.Enums;
+
 const int featureLimit = 5000;
-const int batchSize = 32;
+const int batchSize = 128;
 const int maxEpochs = 25;
-const int imagePadding = 1;
-var inputShape = new Shape(28, 28, 1);
-
-```
-Next we load in the MNist dataset to a tuple of float arrays (float[] features, float[] targets). Then a bit of feature engineering is needed.
-1. Normalize the inputs. Pixel values are generally represented by a value between 0-255 and those numbers are too large for the model to understand. Normalizing them converts them to values between 0-1. This is common practice and is almost always a nessesary step.
-2. Convert the targets to a OneHotEncoded vector. The featurs are given to us as a single int between 0-9 which is hard for the model to understand. Converting to a OHE vector takes that int and places it into a vector. For example, if our label is a 3, encoding the vector will result in [0, 0, 0, 1, 0, 0, 0, 0, 0, 0].
-```c#
 
 var (rawInputs, rawLabels) = await new Mnist(featureLimit).GetDataSet();
-var normalizedInputs = rawInputs.Normalize();
-var oneHotEncode = rawLabels.OneHotEncode();
 
-```
-Now that the data can be read by the model, we need to format it for the specific use case, this is what the TensorTrainSet does.
-1. Transform the feature vector from a float[] to a float[][][] which matches out input shape. This is how Images are used with Neural Networks.
-2. Batch the features into groups of our above defined batch size.
-3. Pad the image so each pixel can be looked at closely.
-4. Split the features into two groups, the first group of data will be used to train on, the second will be used for testing. The testing data will be new to the model as it hasn't seen it yet. This is how to measure model performance on real world data. Common practice is to split the data at a 75% index, so the model will train on 75% of the given data can be tested on the other 25%. For this object 75% is the default so we don't need to define a different split percentage.
-
-```c#
-var featureTargetPair = new TensorTrainSet(normalizedInputs, oneHotEncode)
-    .Transform(inputShape)
+var pair = new TensorTrainSet(rawInputs, rawLabels)
+    .Reshape(new Shape(28, 28, 1))
+    .TransformFeatures(Norm.Image)
+    .TransformTargets(Norm.OHE)
     .Batch(batchSize)
-    .Pad(imagePadding)
     .Split();
-```
 
-Now we can define the model. This model has 5 layers and is a typical architecture for training Neural Networks on images. After we define the model, we can give it to an Optimizer which manages the logic for training the model on the above data - notice we give the optimizer the TensorTrainSet.
-
-```c#
 var neuralNetwork = new MultiLayerPerceptron()
-    .AddLayer(new ConvInfo(16, 3))
-    .AddLayer(new MaxPoolInfo(16, 3) { Stride = 2 })
+    .AddLayer(new ConvInfo(64, 3))
+    .AddLayer(new MaxPoolInfo(2))
     .AddLayer(new FlattenInfo())
     .AddLayer(new DenseInfo(64, Activation.Sigmoid))
-    .AddLayer(new DenseInfo(featureTargetPair.OutputSize, Activation.SoftMax));
+    .AddLayer(new DenseInfo(pair.OutputCategories, Activation.SoftMax));
 
-var optimizer = new Optimizer<MultiLayerPerceptron>(neuralNetwork, featureTargetPair);
+var optimizer = new Optimizer<MultiLayerPerceptron>(neuralNetwork, pair);
 
-var progressBar = new ProgressBar(maxEpochs);
 await optimizer.Train(epoch => 
 {
-    var displayString = $"Loss: {epoch.AverageLoss} Accuracy: {epoch.ClassificationAccuracy}";
-    
-    progressBar.Tick(displayString);
+    Console.WriteLine($"\r{epoch}");
     return maxEpochs == epoch.Index;
 });
+
 ```
-
-Once the model has been trained, we save it to a json file so it can be used later.
-
-```c#
-var wrap = optimizer.Model.Save();
-
-var path = $"C:\\Users\\peter\\Desktop\\Radiate.NET\\Radiate.Examples\\Saves\\convnet.json";
-var content = JsonConvert.SerializeObject(wrap);
-
-await File.WriteAllTextAsync(path, content);
-```
-hi 
