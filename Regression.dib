@@ -1,6 +1,7 @@
 #!csharp
 
 #r "dlls\Charting.dll"
+#r "nuget: Radiate, 1.0.3"
 #r "nuget: XPlot.Plotly.Interactive, 4.0.6"
 
 #!csharp
@@ -10,12 +11,12 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using XPlot.Plotly;
-using Radiate.Domain.Extensions;
+using Radiate.Tensors.Transforms;
 using Charting;
 
 #!csharp
 
-var fileName = $"{Environment.CurrentDirectory}\\data\\BostonHousing\\Boston.csv";
+var fileName = $"{Environment.CurrentDirectory}\\BostonHousing\\Boston.csv";
 var contents = await File.ReadAllTextAsync(fileName);
 
 var features = new List<List<float>>();
