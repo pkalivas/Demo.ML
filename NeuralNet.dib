@@ -29,27 +29,19 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using Newtonsoft.Json;
-using Radiate.Records;
-using Radiate.Data.Utils;
 using Radiate.Data;
-using Radiate.Tensors;
 using Radiate.IO.Wraps;
 using Radiate.Optimizers;
 using Radiate.Optimizers.Supervised.Perceptrons;
-using Radiate.Optimizers.Supervised.SVM;
 
 #!csharp
 
-var fileLocation = $"{Environment.CurrentDirectory}\\Models\\MultiLayerPerceptron.json";
+var fileLocation = Path.Join(Environment.CurrentDirectory, "Models", "MultiLayerPerceptron.json");
 var contents = await File.ReadAllTextAsync(fileLocation);
-
 var convNetWrap = JsonConvert.DeserializeObject<OptimizerWrap>(contents);
+
 var convNet = Optimizer<MultiLayerPerceptron>.Load(convNetWrap);
-
-#!csharp
-
 var (rawInputs, rawLabels) = await new Mnist().GetDataSet();
-$"{convNet.Validate(rawInputs, rawLabels)}"
 
 #!csharp
 
