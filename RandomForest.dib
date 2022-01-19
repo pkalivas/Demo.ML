@@ -21,7 +21,7 @@ using Radiate.Optimizers;
 
 #!csharp
 
-var (features, labels) = await new BostonHousing().GetDataSet();
+var (features, labels) = await new IrisFlowers().GetDataSet();
 
 const int numTrees = 5;
 const int maxDepth = 10;
@@ -29,6 +29,7 @@ const int minSampleSplit = 2;
 
 var pair = new TensorTrainSet(features, labels)
     .Batch(features.Count)
+    .Shuffle()
     .Split();
 
 var forest = new RandomForest(numTrees, new ForestInfo(minSampleSplit, maxDepth));
@@ -41,4 +42,4 @@ var validator = new Validator(lossFunction.Calculate);
 var trainValid = validator.Validate(model, pair.TrainingInputs);
 var testValid = validator.Validate(model, pair.TestingInputs);
 
-$"Train Regression Acc: {trainValid.RegressionAccuracy} Test: {testValid.RegressionAccuracy}"
+$"Train: {trainValid}\nTest: {testValid}"
