@@ -1,7 +1,7 @@
 #!csharp
 
-#r "nuget: Radiate.Data, 1.0.1"
-#r "nuget: Radiate, 1.0.1"
+#r "nuget: Radiate.Data, 1.0.2"
+#r "nuget: Radiate, 1.0.6"
 
 #!csharp
 

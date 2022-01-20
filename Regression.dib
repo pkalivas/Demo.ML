@@ -1,7 +1,7 @@
 #!csharp
 
 #r "dlls\Charting.dll"
-#r "nuget: Radiate, 1.0.3"
+#r "nuget: Radiate, 1.0.6"
 #r "nuget: XPlot.Plotly.Interactive, 4.0.6"
 
 #!csharp
@@ -11,8 +11,18 @@ using System;
 using System.IO;
 using System.Collections.Generic;
 using XPlot.Plotly;
-using Radiate.Tensors.Transforms;
+using Radiate.Extensions;
 using Charting;
+
+#!markdown
+
+## Supervised Learning using a Regression.
+
+#### 1.  Problem Definition 
+- Given surrounding community housing attributes, I want to predict the price of a house in $1000s.
+#### 2. Data Collection
+- Load the data in from a CSV file. 
+- Using the first 13 columns, I want to predict the 14th column.
 
 #!csharp
 
@@ -33,6 +43,14 @@ foreach (var row in contents.Split("\n").Skip(1))
     labels.Add(columns.Skip(columns.Count - 1).ToList());
 }
 
+$"The dataset consists of {features.Count} rows with {features.First().Count} columns"
+
+#!markdown
+
+#### 3. Feature Engineering
+- Standardize the input data
+- Spilt the dataset into a training set containing 75% of the original data and testing set of 25% of the original data
+
 #!csharp
 
 var splitPct = .75;
@@ -49,19 +67,17 @@ var trainTargets = rawLabels.Skip(splitIndex).ToList();
 var testFeatures = normalizedInputs.Take(splitIndex).ToList();
 var testTargets = rawLabels.Take(splitIndex).ToList();
 
-#!csharp
+$"The training data has {trainFeatures.Count} rows and the testing data has {testFeatures.Count} rows"
 
-public float[] DifferenceError(float[] outputs, float[] trueTargets)
-{
-    var result = new List<float>();
+#!markdown
 
-    foreach (var (guess, target) in outputs.Zip(trueTargets))
-    {
-        result.Add(target - guess);
-    }
+#### 4. Model Implementation
+- Build a regression model
 
-    return result.ToArray();
-}
+#!markdown
+
+The weights and biases here are the model's parameters. We need to adjust the values so they produce acceptable values on testing and training data.
+It is common and best practice to initialize these parameters randomly in the range of -1 to 1
 
 #!csharp
 
@@ -78,6 +94,29 @@ for (var i = 0; i < outputSize; i++)
     }
 }
 
+#!markdown
+
+Once we give the model (weights and biases) a row of data, we calculate the error between the model's output and the actual value (the 14th column from our dataset). 
+Using this error, we adjust the model's parameters (weights and biases) little by little.
+
+#!csharp
+
+public float[] DifferenceError(float[] outputs, float[] trueTargets)
+{
+    var result = new List<float>();
+
+    foreach (var (guess, target) in outputs.Zip(trueTargets))
+    {
+        result.Add(target - guess);
+    }
+
+    return result.ToArray();
+}
+
+#!markdown
+
+Feed a row of data from our dataset into our model to produce an output.
+
 #!csharp
 
 public float[] PassForwardInput(float[] inputs)
@@ -91,6 +130,10 @@ public float[] PassForwardInput(float[] inputs)
 
     return result;
 }
+
+#!markdown
+
+Given our error we calculated above, the input we gave the model, and a learning rate, adjust the model's parameters to come closer to the actual value or value we are expecting.
 
 #!csharp
 
@@ -107,6 +150,11 @@ public void PassBackErrors(float[] errors, float[] previousInput, float learning
     }
 }
 
+#!markdown
+
+#### 6. Model Evaluation
+- Given our predictions and the values we want them to be (targets), how accurate is our model?
+
 #!csharp
 
 public static float RegressionAccuracy(List<float[]> predictions, List<float[]> targets)
@@ -119,11 +167,17 @@ public static float RegressionAccuracy(List<float[]> predictions, List<float[]> 
     return (targetTotal - absoluteDifference) / targetTotal;
 }
 
+#!markdown
+
+#### 5. Model Training
+- Train the model over 50 epochs, meaning the model will see the whole training dataset 50 times.
+
 #!csharp
 
-var learningRate = 0.001f;
+var learningRate = 0.001f; // learning rates are used to scale errors so we can adjust the model's parameters by a small amount.
 var maxEpochs = 50;
 
+// Keep track of how accurate the model is over each epoch and what the errors are on each epoch.
 var epochLosses = new List<float>();
 var epochAccuracy = new List<float>();
 
@@ -133,10 +187,13 @@ foreach (var epoch in Enumerable.Range(0, maxEpochs))
     var passPredictions = new List<float[]>();
     foreach (var (input, target) in trainFeatures.Zip(trainTargets))
     {
+        // Give our model a row of data to get it's prediction
         var prediction = PassForwardInput(input);
 
+        // Calculate the error between our prediction and the true value 
         var errors = DifferenceError(prediction, target);
 
+        // Update the weights and biases (model's parameters) 
         PassBackErrors(errors, input, learningRate); 
 
         epochTotalError += errors.Sum();
@@ -151,6 +208,10 @@ foreach (var epoch in Enumerable.Range(0, maxEpochs))
         Console.WriteLine($"Epoch {epoch} loss: {epochLosses.Last()}");
     }
 }
+
+#!markdown
+
+#### 6. Model Evaluation Cont.
 
 #!csharp
 
