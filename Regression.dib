@@ -101,7 +101,7 @@ Using this error, we adjust the model's parameters (weights and biases) little b
 
 #!csharp
 
-public float[] DifferenceError(float[] outputs, float[] trueTargets)
+public float[] CalculateError(float[] outputs, float[] trueTargets)
 {
     var result = new List<float>();
 
@@ -137,7 +137,7 @@ Given our error we calculated above, the input we gave the model, and a learning
 
 #!csharp
 
-public void PassBackErrors(float[] errors, float[] previousInput, float learningRate)
+public void UpdateParameters(float[] errors, float[] previousInput, float learningRate)
 {
     for (var i = 0; i < outputSize; i++)
     {
@@ -152,7 +152,7 @@ public void PassBackErrors(float[] errors, float[] previousInput, float learning
 
 #!markdown
 
-#### 6. Model Evaluation
+Define a way to score each epoch. There are better ways to analyze regression results, but for our purposes the % accuracy will work just fine.
 - Given our predictions and the values we want them to be (targets), how accurate is our model?
 
 #!csharp
@@ -211,7 +211,8 @@ foreach (var epoch in Enumerable.Range(0, maxEpochs))
 
 #!markdown
 
-#### 6. Model Evaluation Cont.
+#### 6. Model Evaluation
+- Predict the training data and the testing data, then find out the % accuracy we have.
 
 #!csharp
 
