@@ -57,14 +57,15 @@ var splitPct = .75;
 
 var splitIndex = (int) (features.Count - (features.Count * splitPct));
 
-var normalizedInputs = features.Select(row => row.ToArray()).ToList().Standardize();
+var standardizedFeatures = features.Select(row => row.ToArray()).ToList().Standardize();
 var rawLabels = labels.Select(lab => lab.ToArray()).ToList();
-var inputSize = normalizedInputs.Select(input => input.Length).Distinct().Single();
+
+var inputSize = standardizedFeatures.Select(input => input.Length).Distinct().Single();
 var outputSize = labels.Select(lab => lab.Count).Distinct().Single();
 
-var trainFeatures = normalizedInputs.Skip(splitIndex).ToList();
+var trainFeatures = standardizedFeatures.Skip(splitIndex).ToList();
 var trainTargets = rawLabels.Skip(splitIndex).ToList();
-var testFeatures = normalizedInputs.Take(splitIndex).ToList();
+var testFeatures = standardizedFeatures.Take(splitIndex).ToList();
 var testTargets = rawLabels.Take(splitIndex).ToList();
 
 $"The training data has {trainFeatures.Count} rows and the testing data has {testFeatures.Count} rows"
@@ -171,6 +172,8 @@ public static float RegressionAccuracy(List<float[]> predictions, List<float[]> 
 
 #### 5. Model Training
 - Train the model over 50 epochs, meaning the model will see the whole training dataset 50 times.
+
+<img src="images/trainingLoop.PNG" />
 
 #!csharp
 
